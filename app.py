@@ -6,7 +6,8 @@ import logging
 app = Flask(__name__)
 
 # Basic structured logging (enterprise standard)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO)
 
 # Environment configuration (Dev / Test / Prod)
 APP_ENV = os.getenv("APP_ENV", "development")
@@ -25,6 +26,8 @@ if FEATURE_EXTENDED_QUOTES:
     quotes.append("Continuous delivery enables faster business value.")
 
 @app.route("/")
+
+
 def home():
     logging.info("Root endpoint accessed")
     return jsonify({
@@ -34,10 +37,14 @@ def home():
     })
 
 @app.route("/health")
+
+
 def health():
     return jsonify({"status": "OK"}), 200
 
 @app.route("/whoami")
+
+
 def whoami():
     return jsonify({
         "ip_address": request.remote_addr
