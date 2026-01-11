@@ -21,7 +21,7 @@ variable "instance_type" {
 
 provider "aws" {
   region  = var.aws_region
-  profile = var.aws_profile
+  #profile = var.aws_profile
 }
 
 # Security Group for SSH access
@@ -30,13 +30,24 @@ resource "aws_security_group" "allow_ssh" {
   name        = "allow_ssh"
   description = "Security group allowing SSH inbound and all outbound"
 
-# SSH access
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_security_group_rule" "ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.allow_ssh.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "flask" {
+  type              = "ingress"
+  from_port         = 5000
+  to_port           = 5000
+  protocol          = "tcp"
+  security_group_id = aws_security_group.allow_ssh.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
 
   # Allow all outbound traffic
   egress {
