@@ -55,17 +55,23 @@ jobs:
 
       # Step 8: Initialize Terraform environment
       - name: Terraform Init
-        run: terraform init
+        run: |
+          cd terraform
+          terraform init
         # Initialize Terraform: this downloads provider plugins and sets up the working directory so Terraform knows what it can do.
 
       # Step 9: See what Terraform is going to do before actually doing it
       - name: Terraform Plan
-        run: terraform plan
+        run: |
+          cd terraform
+          terraform plan
         # Check what changes Terraform plans to make on AWS. This is a safety step to catch mistakes before applying.
 
       # Step 10: Apply the Terraform plan to create AWS resources
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: |
+          cd terraform
+          terraform apply -auto-approve
         # Actually create the EC2 instance and any other resources Terraform has defined. Auto-approve avoids manual confirmation.
 
       # Step 11: Verify that Terraform successfully created the EC2 instance
