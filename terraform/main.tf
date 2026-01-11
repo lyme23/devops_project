@@ -1,12 +1,36 @@
-provider "aws" {
-  region = "us-east-1"
+
+variable "aws_region" {
+  description = "AWS region to deploy the EC2 instance into"
+  type        = string
+  default     = "eu-west-2"
 }
 
-# Security group (firewall)
-resource "aws_security_group" "web_sg" {
-  name        = "devops-project-sg"
-  description = "Allow HTTP and SSH"
+variable "aws_profile" {
+  description = "AWS CLI profile used by Terraform"
+  type        = string
+  default     = "terraform-student"
+}
 
+variable "instance_type" {
+  description = "EC2 instance size"
+  type        = string
+  default     = "t3.micro"
+}
+
+# Provider
+
+provider "aws" {
+  region  = var.aws_region
+  profile = var.aws_profile
+}
+
+# Security Group for SSH access
+
+resource "aws_security_group" "allow_ssh" {
+  name        = "allow_ssh"
+  description = "Security group allowing SSH inbound and all outbound"
+
+# SSH access
   ingress {
     from_port   = 22
     to_port     = 22
@@ -14,13 +38,7 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
@@ -29,37 +47,31 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# SSH keypair
-resource "aws_key_pair" "deployer" {
-  key_name   = "devops-project-key"
-  public_key = var.public_key
-}
+# EC2 Instance
 
-# EC2 instance
-resource "aws_instance" "app_server" {
-  ami           = "ami-0c7217cdde317cfec" # Ubuntu 22.04 US-East-1
-  instance_type = "t2.micro"
-  key_name      = aws_key_pair.deployer.key_name
-  security_groups = [aws_security_group.web_sg.name]
+resource "aws_instance" "dev_instance" {
+  ami                    = "ami-01f43da22ee0fbf95"  
+  instance_type          = var.instance_type
+  key_name               = "devops_project_key"
+  vpc_security_group_ids = [aws_security_group.allow_ssh.id]  # Attach SG
 
+  # Startup script – simple update and confirmation, the "welcome.txt" file confirms our user_data script worked.
   user_data = <<-EOF
               #!/bin/bash
-              sudo apt-get update
-              sudo apt-get install -y docker.io
-              sudo systemctl start docker
-              sudo systemctl enable docker
-              sudo usermod -aG docker ubuntu
+              sudo yum update -y
+              echo "Instance provisioned via Terraform" > /home/ec2-user/welcome.txt
               EOF
 
   tags = {
-    Name = "DevOps-Project-Server"
+    Name        = "TerraformDemoInstance"
+    Environment = "Dev"
   }
 }
 
-variable "public_key" {
-  description = "Your public SSH key"
-}
 
-output "server_ip" {
-  value = aws_instance.app_server.public_ip
+# Outputs
+
+output "instance_public_ip" {
+  description = "The public IP address of the EC2 instance"
+  value       = aws_instance.dev_instance.public_ip
 }
