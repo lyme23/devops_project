@@ -8,22 +8,81 @@ jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v3
+    env:
+      # Letting Git know both the access keys so that once we get to Terraform it can set our AWS EC2 instance up for us
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: eu-west-2  
 
+    steps:
+      # Step 1: Grab the code from GitHub so we can work on it
+      - uses: actions/checkout@v3
+        # Checking out the repository so all the code is available on the runner VM.
+
+      # Step 2: Set up Python so we can run our app and tests
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
+        # Setting up Python 3.9 environment because our app and tests need Python to run.
 
+      # Step 3: Install required Python packages
       - name: Install dependencies
         run: pip install -r requirements.txt
+        # Installing all the Python libraries our app depends on so it will run correctly.
 
+      # Step 4: Check Python code style and basic errors
+      - name: Lint Python
+        run: flake8 app.py tests/
+        # Run flake8 to catch any obvious mistakes or style problems in our Python files before testing.
+
+      # Step 5: Run automated tests
       - name: Run unit tests
         run: python -m unittest discover tests
+        # Run all unit tests in the tests folder to make sure our code is working as expected.
 
+      # Step 6: Build Docker image for our app
       - name: Build Docker image
         run: docker build -t my-devops-app .
+        # Package our app into a Docker image so it can run anywhere consistently.
 
+      # Step 7: Install Terraform so we can manage AWS infrastructure
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.6
+        # Set up Terraform CLI so we can provision AWS resources like EC2 instances. Version 1.5.6 is what we want.
+
+      # Step 8: Initialize Terraform environment
+      - name: Terraform Init
+        run: terraform init
+        # Initialize Terraform: this downloads provider plugins and sets up the working directory so Terraform knows what it can do.
+
+      # Step 9: See what Terraform is going to do before actually doing it
+      - name: Terraform Plan
+        run: terraform plan
+        # Check what changes Terraform plans to make on AWS. This is a safety step to catch mistakes before applying.
+
+      # Step 10: Apply the Terraform plan to create AWS resources
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        # Actually create the EC2 instance and any other resources Terraform has defined. Auto-approve avoids manual confirmation.
+
+      # Step 11: Verify that Terraform successfully created the EC2 instance
+      - name: Verify EC2 instance
+        run: |
+          echo "Checking if the EC2 instance exists..."
+          aws ec2 describe-instances --filters "Name=tag:Name,Values=TerraformDemoInstance" --query 'Reservations[*].Instances[*].[InstanceId,State.Name]' --output table
+        # This lists the EC2 instance(s) Terraform just created, along with their current state. Makes sure our deployment worked.
+
+      # Step 12: Scan Docker image for vulnerabilities
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: my-devops-app:latest
+        # Check the Docker image for known security issues to catch problems early.
+
+      # Step 13: Run our app container
       - name: Run container
         run: docker run -d -p 5000:5000 my-devops-app
+        # Start the Docker container so the app is running and accessible on port 5000.
